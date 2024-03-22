@@ -1,7 +1,13 @@
 from functools import cached_property
 import re
 import redis
+import uuid
+from http.cookies import SimpleCookie
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from urllib.parse import parse_qsl, urlparse
+import random
 from bs4 import BeautifulSoup
+import json
 
 mappings = [
     (r"^/book/(?P<book_id>\d+)$", "get_book"),
@@ -56,7 +62,7 @@ class WebRequestHandler(BaseHTTPRequestHandler):
         else:
             session_id = cookies['session_id'].value
         return session_id
-    
+
     def write_session_cookie(self, session_id):
         cookies = SimpleCookie()
         cookies['session_id'] = str(session_id)
@@ -90,7 +96,7 @@ class WebRequestHandler(BaseHTTPRequestHandler):
                 md = getattr(self, method)
                 md(**match)
                 return
-        
+
         self.send_response(404)
         self.end_headers()
         self.wfile.write('Not Found'.encode('utf-8'))
@@ -132,12 +138,12 @@ class WebRequestHandler(BaseHTTPRequestHandler):
         book_list = r.lrange(f'session:{session_id}', 0, -1)
         for book in book_list:
             self.wfile.write(f'Book: {book.decode("utf-8")}\n'.encode('utf-8'))
-
+    
     def show_all_books(self):
         self.end_headers()
         with open('html/index.html') as f:
             response = f.read()
-        return response
+        self.wfile.write(response.encode("utf-8"))
     
     def recommend_book(self, session_id, book_id):
         r.rpush(session_id, book_id)
